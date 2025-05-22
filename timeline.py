@@ -64,6 +64,7 @@ def tendencia_consumo(df, producto):
     )
     dfp = np.log1p(dfp).diff()
     dfp = dfp.rolling(window=2).mean()
+    dfp = dfp[(dfp > -2.2) & (dfp < 6)]
     dfp = (
         1 - np.exp(dfp[dfp < 0].resample("D").sum(min_count=1).mean(axis=1)).iloc[:-1]
     ).rename(producto)
