@@ -11,7 +11,9 @@ warnings.filterwarnings("ignore")
 
 SALDOS = "saldos/data"
 COMBUSTIBLES = [3, 2, 7, 10]
-REPORT = "reporte/timeline.csv"
+REPORTE_SALDO = "reporte/saldo.csv"
+REPORTE_CONSUMO = "reporte/consumo.csv"
+
 
 # Consolidate all events
 
@@ -49,4 +51,26 @@ df.groupby(
     ["fecha_actualizacion", "id_producto_bsa"], as_index=False
 ).saldo_bsa.sum().pivot_table(
     index="fecha_actualizacion", columns="id_producto_bsa", values="saldo_bsa"
-).to_csv(REPORT, date_format="%Y-%m-%dT%H:%M:%S")
+).to_csv(REPORTE_SALDO, date_format="%Y-%m-%dT%H:%M:%S")
+
+
+def tendencia_consumo(df, producto):
+    dfp = df[df.id_producto_bsa == producto].copy()
+    dfp = (
+        dfp.groupby(["fecha_actualizacion", "id_eess"])
+        .saldo_bsa.sum()
+        .unstack(level=1)
+        .ffill()
+    )
+    dfp = np.log1p(dfp).diff()
+    dfp = dfp.rolling(window=2).mean()
+    dfp = (
+        1 - np.exp(dfp[dfp < 0].resample("D").sum(min_count=1).mean(axis=1)).iloc[:-1]
+    ).rename(producto)
+
+    return dfp
+
+
+pd.concat([tendencia_consumo(df, p) for p in COMBUSTIBLES], axis=1).to_csv(
+    REPORTE_CONSUMO
+)
